@@ -1,0 +1,10 @@
+student_id,subject,classes_held,classes_attended,assignments_total,assignments_submitted,quiz_average,exam_score,study_hours_weekly
+S001,Mathematics,40,36,10,9,82,78,8
+S001,Python,40,32,10,8,75,85,10
+S001,Statistics,40,30,10,7,68,65,5
+S002,Mathematics,40,38,10,10,90,92,12
+S002,Python,40,35,10,9,88,86,11
+S002,Statistics,40,37,10,10,85,89,9
+S003,Mathematics,40,28,10,6,55,58,3
+S003,Python,40,34,10,8,72,75,6
+S003,Statistics,40,25,10,5,48,52,2
