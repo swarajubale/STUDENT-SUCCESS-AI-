@@ -19,6 +19,10 @@ from database import (
 )
 from src.analytics import generate_analytics
 from src.recommendations import generate_recommendations
+from src.intelligence import (
+    generate_student_intelligence,
+    get_intelligence_summary
+)
 
 
 st.set_page_config(
@@ -255,6 +259,7 @@ def show_dashboard(student):
     history = get_student_history(student["student_id"])
 
     data = generate_analytics(data, history=history)
+    data = generate_student_intelligence(data)
     data = generate_recommendations(data)
 
     st.divider()
@@ -349,7 +354,83 @@ def show_dashboard(student):
     )
 
     st.plotly_chart(attendance_fig, use_container_width=True)
+    st.divider()
 
+    st.subheader("🚦 Subject Risk Classification")
+
+    for _, row in data.iterrows():
+        with st.expander(
+            f"{row['subject']} — {row['risk_level']} Risk"
+        ):
+            st.write(f"**Risk Level:** {row['risk_level']}")
+            st.write(f"**Reason:** {row['risk_reasons']}")
+            st.write(f"**Performance Trend:** {row['performance_trend']}")
+
+            if pd.notna(row["performance_change"]):
+                st.write(
+                    f"**Performance Change:** "
+                    f"{row['performance_change']:+.1f} percentage points"
+                )
+
+    st.divider()
+    st.subheader("🧠 Student Performance Intelligence")
+
+    intelligence_summary = get_intelligence_summary(data)
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Strongest Subject",
+            intelligence_summary["strongest_subject"] or "N/A"
+        )
+
+    with col2:
+        st.metric(
+            "Weakest Subject",
+            intelligence_summary["weakest_subject"] or "N/A"
+        )
+
+    with col3:
+        st.metric(
+            "Needs Attention First",
+            intelligence_summary["top_priority_subject"] or "N/A"
+        )
+
+    with col4:
+        st.metric(
+            "Subjects Needing Attention",
+            intelligence_summary["subjects_needing_attention"]
+        )
+
+    st.divider()
+    st.subheader("🎯 Subject Priority Ranking")
+
+    priority_data = data.sort_values(
+        "priority_rank",
+        ascending=True
+    )
+
+    for _, row in priority_data.iterrows():
+
+        with st.expander(
+            f"#{row['priority_rank']} — {row['subject']} | "
+            f"{row['priority_level']} Priority"
+        ):
+            st.metric(
+                "Priority Score",
+                f"{row['priority_score']:.1f}/100"
+            )
+
+            st.write(
+                f"**Priority Level:** {row['priority_level']}"
+            )
+
+            st.write(
+                f"**Why this subject needs attention:** "
+                f"{row['priority_reasons']}"
+            )
+           
     st.subheader("💡 Your Personal Recommendations")
 
     for _, row in data.iterrows():
