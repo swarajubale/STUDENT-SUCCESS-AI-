@@ -1,4 +1,5 @@
 
+from plotly import data
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -23,6 +24,7 @@ from src.intelligence import (
     generate_student_intelligence,
     get_intelligence_summary
 )
+from src.study_planner import generate_study_plan
 
 
 st.set_page_config(
@@ -261,6 +263,7 @@ def show_dashboard(student):
     data = generate_analytics(data, history=history)
     data = generate_student_intelligence(data)
     data = generate_recommendations(data)
+    study_plan = generate_study_plan(data)
 
     st.divider()
 
@@ -430,7 +433,27 @@ def show_dashboard(student):
                 f"**Why this subject needs attention:** "
                 f"{row['priority_reasons']}"
             )
-           
+    st.divider()
+    st.subheader("📚 Smart Weekly Study Planner")
+    st.caption(
+        "Recommended study hours based on your subject priorities."
+    )
+
+    planner_display = study_plan[
+        ["subject", "study_hours_weekly",
+         "recommended_study_hours", "hours_change"]
+    ].rename(columns={
+        "subject": "Subject",
+        "study_hours_weekly": "Current Hours",
+        "recommended_study_hours": "Recommended Hours",
+        "hours_change": "Change"
+    })
+
+    st.dataframe(
+        planner_display,
+        hide_index=True,
+        use_container_width=True
+    )    
     st.subheader("💡 Your Personal Recommendations")
 
     for _, row in data.iterrows():
@@ -438,6 +461,26 @@ def show_dashboard(student):
         with st.expander(row["subject"]):
 
             st.write(row["recommendations"])
+
+    st.divider()
+
+    st.subheader("📅 Weekly Academic Action Plan")
+    st.caption("Your subject-wise targets for this week.")
+
+    for _, row in data.iterrows():
+
+        with st.expander(
+            f"{row['subject']} — {row['priority_level']} Priority"
+        ):
+            st.metric(
+                "Priority Score",
+                f"{row['priority_score']:.1f}/100"
+            )
+
+            st.markdown("### 🎯 This Week's Tasks")
+
+            for task in row["weekly_action_plan"]:
+                st.markdown(f"- {task}")
 
             st.divider()
 
