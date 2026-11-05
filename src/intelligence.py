@@ -31,43 +31,59 @@ def generate_student_intelligence(data):
         assignments = row.get("assignment_percentage")
         trend = row.get("performance_trend")
 
+        
         if pd.notna(performance):
+            performance = float(performance)
             concerns.append(
-                (100 - float(performance), WEIGHTS["performance"])
+                (100 - performance, WEIGHTS["performance"])
             )
-            if float(performance) < 50:
-                reasons.append("Low academic performance")
+            reasons.append(
+                f"Academic performance: {performance:.1f}%"
+            )
 
         if pd.notna(attendance):
+            attendance = float(attendance)
             concerns.append(
-                (100 - float(attendance), WEIGHTS["attendance"])
+                (100 - attendance, WEIGHTS["attendance"])
             )
-            if float(attendance) < 75:
-                reasons.append("Attendance needs improvement")
+            reasons.append(
+                f"Attendance: {attendance:.1f}%"
+            )
 
         if pd.notna(assignments):
+            assignments = float(assignments)
             concerns.append(
-                (100 - float(assignments), WEIGHTS["assignments"])
+                (100 - assignments, WEIGHTS["assignments"])
             )
-            if float(assignments) < 60:
-                reasons.append("Assignment completion is low")
+            reasons.append(
+                f"Assignment completion: {assignments:.1f}%"
+            )
 
-        trend_scores = {
-            "Declining": 100,
-            "Stable": 50,
-            "Improving": 0,
-        }
+        
+        performance_change = row.get("performance_change")
 
-        if trend in trend_scores:
+        if pd.notna(performance_change):
+            trend_concern = max(
+                0,
+                min(100, -float(performance_change) * 10)
+            )
+
             concerns.append(
-                (trend_scores[trend], WEIGHTS["trend"])
+                (trend_concern, WEIGHTS["trend"])
             )
-            if trend == "Declining":
-                reasons.append("Performance is declining")
+
+            reasons.append(
+                f"Performance change: {float(performance_change):+.1f} percentage points"
+            )
+        else:
+            reasons.append("Performance trend: Insufficient history")
+
 
         if not concerns:
-            score = 0
-            reasons.append("Insufficient data for priority calculation")
+            score = None
+            level = "Insufficient Data"
+            reasons.append("Not enough academic data to calculate priority")
+
         else:
             total_weight = sum(weight for _, weight in concerns)
 
@@ -76,16 +92,17 @@ def generate_student_intelligence(data):
                 for concern, weight in concerns
             ) / total_weight
 
-        score = round(score, 2)
+            score = round(score, 2)
 
-        if score <= 25:
-            level = "Low"
-        elif score <= 50:
-            level = "Moderate"
-        elif score <= 70:
-            level = "High"
-        else:
-            level = "Urgent"
+            if score <= 25:
+                level = "Low"
+            elif score <= 50:
+                level = "Moderate"
+            elif score <= 70:
+                level = "High"
+            else:
+                level = "Urgent"
+        
 
         if not reasons:
             reasons.append("No major concerns identified")
@@ -101,7 +118,7 @@ def generate_student_intelligence(data):
     data["priority_rank"] = (
         data["priority_score"]
         .rank(method="dense", ascending=False)
-        .astype(int)
+        .astype("Int64")
     )
 
     return data
@@ -131,9 +148,14 @@ def get_intelligence_summary(data):
             valid["overall_performance"].idxmin(), "subject"
         ]
 
-    top_priority = data.loc[
-        data["priority_score"].idxmax(), "subject"
-    ]
+    valid_priority = data.dropna(subset=["priority_score"])
+
+    top_priority = (
+        valid_priority.loc[
+            valid_priority["priority_score"].idxmax(), "subject"
+        ]
+        if not valid_priority.empty else None
+    )
 
     attention_count = data["priority_level"].isin(
         ["High", "Urgent"]
