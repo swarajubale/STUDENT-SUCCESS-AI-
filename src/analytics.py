@@ -145,13 +145,39 @@ def calculate_risk(data):
     assignments = _numeric(data, "assignment_percentage")
     performance = _numeric(data, "overall_performance")
 
-    high = ((attendance < 60) | (assignments < 40) | (performance < 40)).fillna(False)
-    medium = ((attendance < 75) | (assignments < 60) | (performance < 60)).fillna(False)
-    data["risk_level"] = np.select([high, medium], ["High", "Medium"], default="Low")
+    has_data = (
+        attendance.notna()
+        | assignments.notna()
+        | performance.notna()
+    )
+
+    high = (
+        (attendance < 60)
+        | (assignments < 40)
+        | (performance < 40)
+    ).fillna(False)
+
+    medium = (
+        (attendance < 75)
+        | (assignments < 60)
+        | (performance < 60)
+    ).fillna(False)
+
+    data["risk_level"] = np.select(
+        [~has_data, high, medium],
+        ["Insufficient Data", "High", "Medium"],
+        default="Low"
+    )
 
     reasons = []
+
     for idx in data.index:
+        if not has_data.loc[idx]:
+            reasons.append("Insufficient academic data")
+            continue
+
         parts = []
+
         for value, critical, warning, label in [
             (attendance.loc[idx], 60, 75, "attendance"),
             (assignments.loc[idx], 40, 60, "assignment completion"),
@@ -161,7 +187,12 @@ def calculate_risk(data):
                 parts.append(f"{label} below {critical}%")
             elif pd.notna(value) and value < warning:
                 parts.append(f"{label} below {warning}%")
-        reasons.append("; ".join(parts) if parts else "No threshold-based warning detected")
+
+        reasons.append(
+            "; ".join(parts)
+            if parts else "No threshold-based warning detected"
+        )
+
     data["risk_reasons"] = reasons
     return data
 
@@ -236,7 +267,7 @@ def get_student_summary(data):
     return {
         "average_attendance": data["attendance_percentage"].mean(),
         "average_assignment_completion": data["assignment_completion"].mean(),
-        "average_performance": data["overall_performance"].mean(),
+        "average_assignment_completion": data["assignment_percentage"].mean(),
         "high_risk_subjects": (data["risk_level"] == "High").sum(),
         "medium_risk_subjects": (data["risk_level"] == "Medium").sum(),
         "low_risk_subjects": (data["risk_level"] == "Low").sum(),

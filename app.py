@@ -24,7 +24,10 @@ from src.intelligence import (
     generate_student_intelligence,
     get_intelligence_summary
 )
-from src.study_planner import generate_study_plan
+from src.study_planner import (
+    generate_study_plan,
+    generate_weekly_timetable
+)
 
 
 st.set_page_config(
@@ -264,6 +267,8 @@ def show_dashboard(student):
     data = generate_student_intelligence(data)
     data = generate_recommendations(data)
     study_plan = generate_study_plan(data)
+    weekly_timetable = generate_weekly_timetable(study_plan)
+
 
     st.divider()
 
@@ -421,9 +426,13 @@ def show_dashboard(student):
             f"{row['priority_level']} Priority"
         ):
             st.metric(
-                "Priority Score",
-                f"{row['priority_score']:.1f}/100"
-            )
+    "Priority Score",
+    (
+        f"{row['priority_score']:.1f}/100"
+        if pd.notna(row["priority_score"])
+        else "N/A"
+    )
+)
 
             st.write(
                 f"**Priority Level:** {row['priority_level']}"
@@ -435,20 +444,48 @@ def show_dashboard(student):
             )
     st.divider()
     st.subheader("📚 Smart Weekly Study Planner")
-    st.caption(
-        "Recommended study hours based on your subject priorities."
-    )
+    st.caption("Recommended study hours based on your subject priorities.")
 
     planner_display = study_plan[
-        ["subject", "study_hours_weekly",
-         "recommended_study_hours", "hours_change"]
+        [
+            "subject",
+            "study_hours_weekly",
+            "recommended_study_hours",
+            "hours_change",
+            "allocation_reason"
+        ]
     ].rename(columns={
         "subject": "Subject",
         "study_hours_weekly": "Current Hours",
         "recommended_study_hours": "Recommended Hours",
-        "hours_change": "Change"
+        "hours_change": "Change",
+        "allocation_reason": "Why This Allocation?"
     })
 
+    st.dataframe(
+        planner_display,
+        hide_index=True,
+        use_container_width=True
+    )
+
+    st.subheader("🗓️ Your Weekly Timetable")
+
+    for day in [
+        "Monday", "Tuesday", "Wednesday",
+        "Thursday", "Friday", "Saturday", "Sunday"
+    ]:
+        day_plan = weekly_timetable[
+            weekly_timetable["Day"] == day
+        ]
+
+        with st.expander(day):
+            st.dataframe(
+                day_plan[
+                    ["Subject", "Activity", "Duration (hours)"]
+                ],
+                hide_index=True,
+                use_container_width=True
+            )
     st.dataframe(
         planner_display,
         hide_index=True,
@@ -472,10 +509,15 @@ def show_dashboard(student):
         with st.expander(
             f"{row['subject']} — {row['priority_level']} Priority"
         ):
+       
             st.metric(
-                "Priority Score",
-                f"{row['priority_score']:.1f}/100"
-            )
+    "Priority Score",
+    (
+        f"{row['priority_score']:.1f}/100"
+        if pd.notna(row["priority_score"])
+        else "N/A"
+    )
+)
 
             st.markdown("### 🎯 This Week's Tasks")
 
